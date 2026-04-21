@@ -1,0 +1,9 @@
+# Dependencies
+node_modules/
+
+# Candidate data & CVs (sensitive — never push to git)
+data/
+
+# OS
+.DS_Store
+Thumbs.db

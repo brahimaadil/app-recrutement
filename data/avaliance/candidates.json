@@ -1,1 +1,77 @@
-[]
+[
+  {
+    "name": "Mohamed Fazazi",
+    "poste": "Devops Engineer",
+    "date": "2026-04-24",
+    "heure": "14:00",
+    "status": "planifie",
+    "email": "",
+    "notes": "",
+    "stars": 0,
+    "id": "1776768789944",
+    "createdAt": "2026-04-21T10:53:09.944Z",
+    "cvFile": "Mohamed-Fazazi-Devops.pdf",
+    "cvMime": "application/pdf",
+    "cvSize": 472799
+  },
+  {
+    "name": "Marwa Maarouf",
+    "poste": "Devops Engineer Foundation",
+    "date": "2026-04-22",
+    "heure": "16:00",
+    "status": "planifie",
+    "email": "",
+    "notes": "",
+    "stars": 0,
+    "id": "1776768941393",
+    "createdAt": "2026-04-21T10:55:41.393Z",
+    "cvFile": "Marwa-Maarouf-Devops.pdf",
+    "cvMime": "application/pdf",
+    "cvSize": 143508
+  },
+  {
+    "name": "Yassine Boutakbout",
+    "poste": "Dev AI",
+    "date": "2026-04-23",
+    "heure": "11:00",
+    "status": "planifie",
+    "email": "",
+    "notes": "",
+    "stars": 0,
+    "id": "1776769138067",
+    "createdAt": "2026-04-21T10:58:58.067Z",
+    "cvFile": "CV YASSIN_BOUTAKBOUT_AI ENGINEER _En US_ _3_ _1_.pdf",
+    "cvMime": "application/pdf",
+    "cvSize": 488917
+  },
+  {
+    "name": "Zakaria Yacoubi",
+    "poste": "Devops Engineer Foundation",
+    "date": "2026-04-16",
+    "heure": "15:00",
+    "status": "refuse",
+    "email": "",
+    "notes": "manque de skills sur la cloud azure, plus sur de l'onprem (atlas cloud)",
+    "stars": 1,
+    "id": "1776769489261",
+    "createdAt": "2026-04-21T11:04:49.261Z",
+    "cvFile": "DS-Zakaria Yacoubi.pdf",
+    "cvMime": "application/pdf",
+    "cvSize": 349902
+  },
+  {
+    "name": "Faouzi Kamal",
+    "poste": "Dev AI",
+    "date": "2026-04-13",
+    "heure": "15:00",
+    "status": "refuse",
+    "email": "",
+    "notes": "Manque de communication Ang/FR\nmanque de skills en dev/cloud",
+    "stars": 1,
+    "id": "1776769575355",
+    "createdAt": "2026-04-21T11:06:15.355Z",
+    "cvFile": "FAOUZIKAMAL.pdf",
+    "cvMime": "application/pdf",
+    "cvSize": 113365
+  }
+]

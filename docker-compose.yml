@@ -1,0 +1,14 @@
+services:
+  suivi-entretiens:
+    build: .
+    container_name: suivi-entretiens
+    restart: unless-stopped          # redémarre automatiquement après reboot
+    ports:
+      - "3000:3000"                  # http://localhost:3000
+    volumes:
+      # Données persistantes sur la machine hôte (Mac ou Windows)
+      # Mac/Linux : ./data  →  dans le conteneur : /app/data
+      # Windows   : .\data  →  identique (Docker Desktop gère la conversion)
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production

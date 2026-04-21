@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suivi des Entretiens</title>
+  <style>
+    /* ── Tokens ── */
+    :root {
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --neutral: #94a3b8;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      /* active view tokens (overridden by JS) */
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --primary-light: #bfdbfe;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+      gap: 20px;
+    }
+
+    /* ── View tabs ── */
+    .view-tabs { display: flex; align-items: stretch; gap: 0; }
+    .view-tab {
+      display: flex; align-items: center; gap: 10px;
+      padding: 0 26px;
+      font-size: 0.92rem; font-weight: 700;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      color: var(--text-light);
+      transition: color .15s, border-color .15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .view-tab .tab-logo {
+      height: 26px; width: auto; border-radius: 4px;
+      object-fit: contain;
+    }
+    .view-tab .tab-name { font-size: 1rem; font-weight: 800; letter-spacing: .03em; }
+    .view-tab.active-avaliance { color: #2563eb; border-color: #2563eb; }
+    .view-tab.active-sodexo    { color: #c2410c; border-color: #c2410c; }
+    .view-tab:not(.active-avaliance):not(.active-sodexo):hover { color: var(--text); }
+
+    .week-nav { display: flex; align-items: center; gap: 10px; padding: 12px 0; }
+    .week-nav button {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 14px; cursor: pointer; font-size: 0.82rem; color: var(--text);
+      transition: background .15s;
+    }
+    .week-nav button:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn-today { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+    #week-label { font-size: 0.85rem; font-weight: 600; color: var(--text-light); min-width: 200px; text-align: center; }
+
+    /* ── Context banner ── */
+    .context-banner {
+      padding: 14px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .context-banner .brand-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 999px;
+      font-weight: 700; font-size: 0.9rem;
+    }
+    .context-banner .brand-subtitle { font-size: 0.82rem; color: var(--text-light); }
+    .banner-avaliance .brand-pill { background: #eff6ff; color: #1d4ed8; }
+    .banner-sodexo    .brand-pill { background: #fff7ed; color: #c2410c; }
+
+    /* ── Company badges (Sodexo view) ── */
+    .company-badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 10px; border-radius: 999px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    }
+    .co-CGI        { background: #f0f9ff; color: #0369a1; border: 1px solid #bae6fd; }
+    .co-PERSISTENT { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+    .co-TCS        { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
+    .co-AUTRE      { background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
+
+    /* ── Layout ── */
+    .container { max-width: 1220px; margin: 0 auto; padding: 24px 20px; }
+
+    /* ── Stats ── */
+    .stats-row { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stat-card {
+      background: var(--card); border-radius: var(--radius); padding: 16px 20px;
+      box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 3px;
+      flex: 1; min-width: 130px;
+    }
+    .stat-card .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-light); }
+    .stat-card .value { font-size: 1.9rem; font-weight: 800; }
+    .stat-card.s-total   .value { color: var(--primary); }
+    .stat-card.s-retenu  .value { color: var(--success); }
+    .stat-card.s-attente .value { color: var(--warning); }
+    .stat-card.s-refuse  .value { color: var(--danger); }
+    /* Sodexo company stats */
+    .stat-card.s-cgi        .value { color: #0369a1; }
+    .stat-card.s-persistent .value { color: #6d28d9; }
+    .stat-card.s-tcs        .value { color: #b45309; }
+
+    /* ── Top bar ── */
+    .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 180px; position: relative; }
+    .search-box input {
+      width: 100%; padding: 9px 14px 9px 36px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); font-size: 0.88rem; outline: none; transition: border .15s;
+    }
+    .search-box input:focus { border-color: var(--primary); }
+    .search-box .si { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--neutral); pointer-events: none; }
+    .filter-select {
+      padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); font-size: 0.85rem; color: var(--text); outline: none; cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--primary); color: #fff; border: none; border-radius: 8px;
+      padding: 9px 18px; font-size: 0.85rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 7px; transition: background .15s; white-space: nowrap;
+    }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    /* ── Cards ── */
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 18px; }
+    .candidate-card {
+      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      overflow: hidden; transition: transform .15s, box-shadow .15s; border: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .candidate-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+    .card-accent { height: 4px; }
+    .card-header { padding: 14px 16px 10px; display: flex; align-items: flex-start; gap: 12px; }
+    .avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .card-info { flex: 1; min-width: 0; }
+    .card-info h3 { font-size: 0.97rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-info .poste { font-size: 0.78rem; color: var(--text-light); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+    .card-date { font-size: 0.72rem; color: var(--text-light); white-space: nowrap; }
+
+    .status-badge {
+      display: inline-block; padding: 2px 9px; border-radius: 20px;
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .status-planifie   { background: #eff6ff; color: #2563eb; }
+    .status-en_cours   { background: #fefce8; color: #b45309; }
+    .status-retenu     { background: #f0fdf4; color: #15803d; }
+    .status-refuse     { background: #fff1f2; color: #be123c; }
+    .status-en_attente { background: #f8fafc; color: #475569; }
+
+    .card-body { padding: 0 16px 10px; flex: 1; }
+    .card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .stars { display: flex; gap: 2px; }
+    .star { font-size: 0.95rem; cursor: pointer; transition: transform .1s; user-select: none; }
+    .star:hover { transform: scale(1.25); }
+    .star.filled { color: #f59e0b; }
+    .star.empty  { color: #d1d5db; }
+    .note-preview {
+      font-size: 0.78rem; color: var(--text-light); background: var(--bg);
+      border-radius: 7px; padding: 7px 9px; margin-bottom: 8px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 34px;
+    }
+    .note-preview.empty { font-style: italic; color: var(--neutral); }
+    .card-footer { padding: 8px 16px 12px; display: flex; gap: 7px; border-top: 1px solid var(--border); }
+    .btn-sm {
+      flex: 1; padding: 6px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 700;
+      cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      transition: background .15s; display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .btn-sm:hover { background: #e2e8f0; }
+    .btn-sm.btn-cv   { background: var(--primary-bg); border-color: var(--primary-light); color: var(--primary); }
+    .btn-sm.btn-cv:hover { filter: brightness(.95); }
+    .btn-sm.btn-edit { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+    .btn-sm.btn-edit:hover { background: #dcfce7; }
+    .btn-sm.btn-delete { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+    .btn-sm.btn-delete:hover { background: #ffe4e6; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-light); }
+    .empty-state .icon { font-size: 3.2rem; margin-bottom: 10px; }
+
+    /* ── Modals ── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(15,23,42,0.45); z-index: 200;
+      align-items: center; justify-content: center; padding: 16px;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 16px; width: 100%; max-width: 580px;
+      max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+    }
+    .modal-header {
+      padding: 20px 22px 0; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border); padding-bottom: 14px;
+    }
+    .modal-header h2 { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-light); padding: 2px 8px; border-radius: 6px; }
+    .modal-close:hover { background: var(--bg); }
+    .modal-body { padding: 18px 22px 22px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--text-light); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.88rem; font-family: inherit; outline: none; background: var(--bg);
+      transition: border .15s; color: var(--text);
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--primary); background: #fff; }
+    .form-group textarea { resize: vertical; min-height: 76px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .star-input { display: flex; gap: 6px; }
+    .star-input .star { font-size: 1.35rem; }
+    .file-drop {
+      border: 2px dashed var(--border); border-radius: 8px; padding: 18px;
+      text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+      background: var(--bg); position: relative;
+    }
+    .file-drop:hover, .file-drop.drag-over { border-color: var(--primary); background: var(--primary-bg); }
+    .file-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .file-drop .drop-icon { font-size: 1.8rem; margin-bottom: 4px; }
+    .file-drop p { font-size: 0.8rem; color: var(--text-light); }
+    .file-name { font-size: 0.78rem; color: var(--primary); font-weight: 700; margin-top: 5px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 6px; }
+    .btn-cancel { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 18px; font-size: 0.85rem; cursor: pointer; }
+    .btn-cancel:hover { background: #e2e8f0; }
+
+    /* ── CV viewer ── */
+    .cv-viewer {
+      background: var(--card); border-radius: 16px; width: 100%; max-width: 820px;
+      max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+    }
+    .cv-viewer-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .cv-viewer-body { flex: 1; overflow: auto; padding: 14px; display: flex; align-items: center; justify-content: center; }
+    .cv-viewer-body iframe { width: 100%; height: 66vh; border: none; }
+    .cv-viewer-body img { max-width: 100%; max-height: 70vh; border-radius: 8px; }
+    .no-cv { color: var(--text-light); font-size: 0.9rem; text-align: center; padding: 40px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      header { flex-wrap: wrap; padding: 0 14px; }
+      .week-nav { display: none; }
+      .form-row { grid-template-columns: 1fr; }
+      #week-label { min-width: unset; }
+    }
+
+    /* ── Section divider (Sodexo) ── */
+    .company-section-title {
+      font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--text-light); padding: 6px 0 10px; display: flex; align-items: center; gap: 10px;
+    }
+    .company-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── Priorities panel ── */
+    .prio-panel {
+      background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+      border: 1px solid var(--border); margin-bottom: 22px; overflow: hidden;
+    }
+    .prio-panel-header {
+      display: flex; align-items: center; gap: 12px; padding: 14px 18px;
+      cursor: pointer; user-select: none; border-bottom: 1px solid transparent;
+      transition: background .12s;
+    }
+    .prio-panel-header:hover { background: var(--bg); }
+    .prio-panel-header.open { border-bottom-color: var(--border); }
+    .prio-panel-title { font-size: 0.92rem; font-weight: 800; display: flex; align-items: center; gap: 8px; flex: 1; }
+    .prio-count {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary-light);
+      border-radius: 999px; font-size: 0.72rem; font-weight: 800;
+      min-width: 22px; height: 22px; padding: 0 7px;
+    }
+    .prio-toggle-icon { color: var(--text-light); font-size: 0.8rem; transition: transform .2s; }
+    .prio-toggle-icon.open { transform: rotate(180deg); }
+    .prio-body { padding: 16px 18px; display: none; }
+    .prio-body.open { display: block; }
+
+    .prio-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .prio-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      background: var(--bg); border-radius: 10px; border: 1px solid var(--border);
+      transition: box-shadow .12s;
+    }
+    .prio-row:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .prio-rank {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px;
+      font-size: 0.78rem; font-weight: 900; flex-shrink: 0; color: #fff;
+    }
+    .prio-rank-1 { background: #ef4444; }
+    .prio-rank-2 { background: #f59e0b; }
+    .prio-rank-3 { background: #3b82f6; }
+    .prio-rank-n { background: #94a3b8; }
+    .prio-main { flex: 1; min-width: 0; }
+    .prio-profile { font-size: 0.9rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .prio-sub { font-size: 0.76rem; color: var(--text-light); margin-top: 1px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .prio-team-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--card); border: 1px solid var(--border);
+      padding: 1px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; color: var(--text-light);
+    }
+    .prio-notes-preview { font-size: 0.74rem; color: var(--neutral); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .prio-status-badge {
+      display: inline-flex; padding: 2px 9px; border-radius: 20px;
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0;
+    }
+    .ps-ouvert    { background: #f0fdf4; color: #15803d; }
+    .ps-en_cours  { background: #fefce8; color: #b45309; }
+    .ps-pourvu    { background: #f8fafc; color: #475569; }
+    .ps-pause     { background: #fff1f2; color: #be123c; }
+    .prio-actions { display: flex; gap: 5px; flex-shrink: 0; }
+    .prio-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: 4px 8px; cursor: pointer; font-size: 0.75rem; color: var(--text-light);
+      transition: background .12s;
+    }
+    .prio-btn:hover { background: #e2e8f0; }
+    .prio-btn.del:hover { background: #ffe4e6; color: #be123c; border-color: #fecdd3; }
+
+    .prio-empty { font-size: 0.83rem; color: var(--neutral); font-style: italic; padding: 8px 0 4px; }
+
+    .prio-add-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--primary-bg); border: 1px dashed var(--primary-light);
+      color: var(--primary); border-radius: 8px; padding: 7px 16px;
+      font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: background .12s;
+    }
+    .prio-add-btn:hover { background: var(--primary); color: #fff; border-style: solid; }
+
+    /* Priority modal */
+    .prio-modal { max-width: 500px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ Header ══ -->
+<header>
+  <div class="view-tabs">
+    <div class="view-tab" id="tab-avaliance" onclick="switchView('avaliance')">
+      <span class="tab-name" style="color:#1d4ed8">🏢 Avaliance</span>
+    </div>
+    <div class="view-tab" id="tab-sodexo" onclick="switchView('sodexo')">
+      <span class="tab-name" style="color:#c2410c">🍽 Sodexo</span>
+    </div>
+  </div>
+  <div class="week-nav">
+    <button onclick="changeWeek(-1)">‹ Précédent</button>
+    <span id="week-label">–</span>
+    <button onclick="changeWeek(1)">Suivant ›</button>
+    <button class="btn-today" onclick="goToCurrentWeek()">Aujourd'hui</button>
+  </div>
+</header>
+
+<!-- ══ Context banner ══ -->
+<div class="context-banner" id="context-banner"></div>
+
+<div class="container">
+  <!-- Stats -->
+  <div class="stats-row" id="stats-row"></div>
+
+  <!-- ══ Priorités de recrutement ══ -->
+  <div class="prio-panel" id="prio-panel">
+    <div class="prio-panel-header" id="prio-header" onclick="togglePrioPanel()">
+      <div class="prio-panel-title">
+        🎯 Priorités de recrutement
+        <span class="prio-count" id="prio-count">0</span>
+      </div>
+      <span class="prio-toggle-icon" id="prio-toggle-icon">▼</span>
+      <button class="btn-primary" style="padding:6px 14px;font-size:0.8rem" onclick="event.stopPropagation();openPrioModal()">＋ Ajouter</button>
+    </div>
+    <div class="prio-body" id="prio-body">
+      <div class="prio-list" id="prio-list"></div>
+    </div>
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="search-box">
+      <span class="si">🔍</span>
+      <input type="text" id="search" placeholder="Rechercher…" oninput="renderCards()" />
+    </div>
+    <select class="filter-select" id="filter-status" onchange="renderCards()">
+      <option value="">Tous les statuts</option>
+      <option value="planifie">Planifié</option>
+      <option value="en_cours">En cours</option>
+      <option value="retenu">Retenu</option>
+      <option value="en_attente">En attente</option>
+      <option value="refuse">Refusé</option>
+    </select>
+    <select class="filter-select" id="filter-company" onchange="renderCards()" style="display:none">
+      <option value="">Toutes les sociétés</option>
+      <option value="CGI">CGI</option>
+      <option value="PERSISTENT">PERSISTENT</option>
+      <option value="TCS">TCS</option>
+      <option value="AUTRE">Autre</option>
+    </select>
+    <select class="filter-select" id="filter-sort" onchange="renderCards()">
+      <option value="date_asc">Heure croissante</option>
+      <option value="date_desc">Plus récent d'abord</option>
+      <option value="note_desc">Meilleure note</option>
+      <option value="name_asc">Nom A→Z</option>
+    </select>
+    <button class="btn-primary" id="btn-add" onclick="openModal()">＋ Ajouter</button>
+  </div>
+
+  <div class="cards-grid" id="cards-grid"></div>
+  <div class="empty-state" id="empty-state" style="display:none">
+    <div class="icon">📂</div>
+    <p>Aucun candidat pour cette période.</p>
+  </div>
+</div>
+
+<!-- ══ Add/Edit Modal ══ -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Nouveau candidat</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- Sodexo only: société -->
+      <div class="form-group" id="field-company" style="display:none">
+        <label>Société *</label>
+        <select id="f-company">
+          <option value="CGI">CGI</option>
+          <option value="PERSISTENT">PERSISTENT</option>
+          <option value="TCS">TCS</option>
+          <option value="AUTRE">Autre</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nom complet *</label>
+          <input id="f-name" type="text" placeholder="Jean Dupont" />
+        </div>
+        <div class="form-group">
+          <label>Poste visé *</label>
+          <input id="f-poste" type="text" placeholder="Développeur Full-Stack" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date d'entretien *</label>
+          <input id="f-date" type="date" />
+        </div>
+        <div class="form-group">
+          <label>Heure</label>
+          <input id="f-heure" type="time" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Statut</label>
+          <select id="f-status">
+            <option value="planifie">Planifié</option>
+            <option value="en_cours">En cours</option>
+            <option value="en_attente">En attente</option>
+            <option value="retenu">Retenu</option>
+            <option value="refuse">Refusé</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input id="f-email" type="email" placeholder="candidat@email.com" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Évaluation</label>
+        <div class="star-input" id="star-input">
+          <span class="star empty" data-v="1" onclick="setStars(1)">★</span>
+          <span class="star empty" data-v="2" onclick="setStars(2)">★</span>
+          <span class="star empty" data-v="3" onclick="setStars(3)">★</span>
+          <span class="star empty" data-v="4" onclick="setStars(4)">★</span>
+          <span class="star empty" data-v="5" onclick="setStars(5)">★</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notes &amp; observations</label>
+        <textarea id="f-notes" placeholder="Points forts, points faibles, impressions générales…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>CV (PDF ou image)</label>
+        <div class="file-drop" id="file-drop">
+          <input type="file" id="f-cv" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFile(event)" />
+          <div class="drop-icon">📎</div>
+          <p>Glisser-déposer ou cliquer pour parcourir</p>
+          <p class="file-name" id="file-name-display"></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Annuler</button>
+        <button class="btn-primary" onclick="saveCandidate()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Priority Modal ══ -->
+<div class="overlay" id="prio-overlay" onclick="handlePrioOverlayClick(event)">
+  <div class="modal prio-modal">
+    <div class="modal-header">
+      <h2 id="prio-modal-title">🎯 Nouvelle priorité</h2>
+      <button class="modal-close" onclick="closePrioModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Rang *</label>
+          <input id="p-rank" type="number" min="1" max="99" placeholder="1" style="width:100%" />
+        </div>
+        <div class="form-group">
+          <label>Statut</label>
+          <select id="p-status">
+            <option value="ouvert">Ouvert</option>
+            <option value="en_cours">En cours</option>
+            <option value="pause">En pause</option>
+            <option value="pourvu">Pourvu</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Profil recherché *</label>
+        <input id="p-profile" type="text" placeholder="Ex : DEV AI, Tech Lead, Data Engineer…" />
+      </div>
+      <div class="form-group">
+        <label>Équipe / Team *</label>
+        <input id="p-team" type="text" placeholder="Ex : Foundation Team, Product, Ops…" />
+      </div>
+      <div class="form-group" id="p-field-company" style="display:none">
+        <label>Société</label>
+        <select id="p-company">
+          <option value="">— Toutes —</option>
+          <option value="CGI">CGI</option>
+          <option value="PERSISTENT">PERSISTENT</option>
+          <option value="TCS">TCS</option>
+          <option value="AUTRE">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Notes / contexte</label>
+        <textarea id="p-notes" placeholder="Contexte, compétences clés, deadline…" style="min-height:64px"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closePrioModal()">Annuler</button>
+        <button class="btn-primary" onclick="savePrio()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CV Viewer ══ -->
+<div class="overlay" id="cv-overlay" onclick="handleCvOverlayClick(event)">
+  <div class="cv-viewer">
+    <div class="cv-viewer-header">
+      <strong id="cv-title">CV</strong>
+      <button class="modal-close" onclick="closeCvModal()">×</button>
+    </div>
+    <div class="cv-viewer-body" id="cv-viewer-body"></div>
+  </div>
+</div>
+
+<script>
+// ══ View config ══
+const VIEWS = {
+  avaliance: {
+    label: 'Avaliance',
+    primary: '#2563eb', primaryDark: '#1d4ed8', primaryBg: '#eff6ff', primaryLight: '#bfdbfe',
+    bannerClass: 'banner-avaliance',
+    subtitle: 'Entretiens internes — recrutement Avaliance',
+    icon: '🏢',
+    hasCompany: false,
+  },
+  sodexo: {
+    label: 'Sodexo',
+    primary: '#c2410c', primaryDark: '#9a3412', primaryBg: '#fff7ed', primaryLight: '#fed7aa',
+    bannerClass: 'banner-sodexo',
+    subtitle: 'Entretiens mission client — candidats CGI · PERSISTENT · TCS',
+    icon: '🍽',
+    hasCompany: true,
+  }
+};
+const COMPANY_COLORS = { CGI:'#0369a1', PERSISTENT:'#6d28d9', TCS:'#b45309', AUTRE:'#475569' };
+
+let currentView = 'avaliance';
+let currentWeekOffset = 0;
+let editingId = null;
+let currentStar = 0;
+let pendingCvFile = null;
+
+// In-memory cache (loaded from API on each view switch / mutation)
+const state = { candidates: [], prios: [] };
+
+// ── API helpers ──────────────────────────────────────────────────────────────
+const api = {
+  async get(url)        { return (await fetch(url)).json(); },
+  async post(url, body) { return (await fetch(url, { method:'POST',  headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })).json(); },
+  async put(url,  body) { return (await fetch(url, { method:'PUT',   headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })).json(); },
+  async del(url)        { return (await fetch(url, { method:'DELETE' })).json(); },
+  async uploadCv(view, id, file) {
+    const fd = new FormData(); fd.append('cv', file);
+    return (await fetch(`/api/${view}/candidates/${id}/cv`, { method:'POST', body:fd })).json();
+  }
+};
+
+async function loadView() {
+  const [candidates, prios] = await Promise.all([
+    api.get(`/api/${currentView}/candidates`),
+    api.get(`/api/${currentView}/priorities`),
+  ]);
+  state.candidates = candidates;
+  state.prios      = prios;
+}
+
+// ── Theme ──
+function applyTheme(v) {
+  const cfg = VIEWS[v];
+  const root = document.documentElement;
+  root.style.setProperty('--primary',       cfg.primary);
+  root.style.setProperty('--primary-dark',  cfg.primaryDark);
+  root.style.setProperty('--primary-bg',    cfg.primaryBg);
+  root.style.setProperty('--primary-light', cfg.primaryLight);
+}
+
+// ── Switch view ──
+async function switchView(v) {
+  currentView = v;
+  applyTheme(v);
+  document.getElementById('tab-avaliance').className = 'view-tab' + (v === 'avaliance' ? ' active-avaliance' : '');
+  document.getElementById('tab-sodexo').className    = 'view-tab' + (v === 'sodexo'    ? ' active-sodexo'    : '');
+  document.getElementById('filter-company').style.display = VIEWS[v].hasCompany ? '' : 'none';
+  updateBanner();
+  await loadView();
+  renderPrios();
+  renderCards();
+}
+
+function updateBanner() {
+  const cfg = VIEWS[currentView];
+  document.getElementById('context-banner').innerHTML = `
+    <div class="${cfg.bannerClass}" style="display:flex;align-items:center;gap:10px">
+      <span class="brand-pill">${cfg.icon} ${cfg.label}</span>
+      <span class="brand-subtitle">${cfg.subtitle}</span>
+    </div>`;
+}
+
+// ── Week ──
+function getWeekBounds(offset = 0) {
+  const now = new Date();
+  const day = now.getDay() === 0 ? 7 : now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - day + 1 + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
+}
+function changeWeek(dir) { currentWeekOffset += dir; updateWeekLabel(); renderCards(); }
+function goToCurrentWeek() { currentWeekOffset = 0; updateWeekLabel(); renderCards(); }
+function updateWeekLabel() {
+  const { monday, sunday } = getWeekBounds(currentWeekOffset);
+  const o = { day: 'numeric', month: 'short' };
+  document.getElementById('week-label').textContent =
+    `Semaine du ${monday.toLocaleDateString('fr-FR',o)} au ${sunday.toLocaleDateString('fr-FR',o)}`;
+}
+
+// ── Colors ──
+const PALETTE = ['#4f6ef7','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#14b8a6'];
+function getColor(name) { let h=0; for(let c of name) h=(h*31+c.charCodeAt(0))%PALETTE.length; return PALETTE[h]; }
+function initials(name) { return name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase(); }
+
+// ── Stars ──
+function setStars(n) { currentStar = n; renderStarInput(n); }
+function renderStarInput(n) {
+  document.querySelectorAll('#star-input .star').forEach(s => {
+    s.className = 'star ' + (parseInt(s.dataset.v) <= n ? 'filled' : 'empty');
+  });
+}
+
+// ── File ──
+function handleFile(e) { pendingCvFile = e.target.files[0] || null; showPendingFile(); }
+function loadFile(file) { pendingCvFile = file; showPendingFile(); }
+function showPendingFile() {
+  document.getElementById('file-name-display').textContent = pendingCvFile ? '✅ ' + pendingCvFile.name : '';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const drop = document.getElementById('file-drop');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) { loadFile(f); document.getElementById('f-cv').value = ''; }
+  });
+});
+
+// ── Modal ──
+function openModal(id = null) {
+  editingId = id; currentStar = 0; pendingCvFile = null;
+  document.getElementById('file-name-display').textContent = '';
+  document.getElementById('f-cv').value = '';
+  const cfg = VIEWS[currentView];
+  document.getElementById('modal-title').innerHTML = `${cfg.icon} ${id ? 'Modifier le candidat' : 'Nouveau candidat — ' + cfg.label}`;
+  document.getElementById('field-company').style.display = cfg.hasCompany ? '' : 'none';
+
+  if (id) {
+    const c = state.candidates.find(x => x.id === id);
+    document.getElementById('f-name').value   = c.name;
+    document.getElementById('f-poste').value  = c.poste;
+    document.getElementById('f-date').value   = c.date;
+    document.getElementById('f-heure').value  = c.heure || '';
+    document.getElementById('f-status').value = c.status;
+    document.getElementById('f-email').value  = c.email || '';
+    document.getElementById('f-notes').value  = c.notes || '';
+    if (cfg.hasCompany) document.getElementById('f-company').value = c.company || 'CGI';
+    currentStar = c.stars || 0;
+    if (c.cvFile) document.getElementById('file-name-display').textContent = '📎 ' + c.cvFile + ' (existant)';
+  } else {
+    ['f-name','f-poste','f-email','f-notes'].forEach(fid => document.getElementById(fid).value = '');
+    document.getElementById('f-date').value   = new Date().toISOString().slice(0,10);
+    document.getElementById('f-heure').value  = '';
+    document.getElementById('f-status').value = 'planifie';
+    if (cfg.hasCompany) document.getElementById('f-company').value = 'CGI';
+  }
+  renderStarInput(currentStar);
+  document.getElementById('overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function handleOverlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+async function saveCandidate() {
+  const name  = document.getElementById('f-name').value.trim();
+  const poste = document.getElementById('f-poste').value.trim();
+  const date  = document.getElementById('f-date').value;
+  if (!name || !poste || !date) { alert('Remplissez les champs obligatoires (nom, poste, date).'); return; }
+  const cfg  = VIEWS[currentView];
+  const base = {
+    name, poste, date,
+    heure:  document.getElementById('f-heure').value,
+    status: document.getElementById('f-status').value,
+    email:  document.getElementById('f-email').value.trim(),
+    notes:  document.getElementById('f-notes').value.trim(),
+    stars:  currentStar,
+    ...(cfg.hasCompany ? { company: document.getElementById('f-company').value } : {}),
+  };
+  const saved = editingId
+    ? await api.put(`/api/${currentView}/candidates/${editingId}`, base)
+    : await api.post(`/api/${currentView}/candidates`, base);
+  if (pendingCvFile) await api.uploadCv(currentView, saved.id, pendingCvFile);
+  closeModal();
+  await loadView();
+  renderCards();
+}
+
+async function deleteCandidate(id) {
+  if (!confirm('Supprimer ce candidat ?')) return;
+  await api.del(`/api/${currentView}/candidates/${id}`);
+  await loadView();
+  renderCards();
+}
+
+async function quickStar(id, n) {
+  await api.put(`/api/${currentView}/candidates/${id}`, { stars: n });
+  state.candidates = state.candidates.map(c => c.id === id ? { ...c, stars: n } : c);
+  renderCards();
+}
+
+// ── CV ──
+function openCv(id) {
+  const c    = state.candidates.find(x => x.id === id);
+  const body = document.getElementById('cv-viewer-body');
+  document.getElementById('cv-title').textContent = (c.cvFile || 'CV') + ' — ' + c.name;
+  if (!c.cvFile) {
+    body.innerHTML = '<p class="no-cv">Aucun CV joint pour ce candidat.</p>';
+  } else if (c.cvMime === 'application/pdf') {
+    body.innerHTML = `<iframe src="/api/${currentView}/candidates/${id}/cv"></iframe>`;
+  } else {
+    body.innerHTML = `<img src="/api/${currentView}/candidates/${id}/cv" alt="CV" />`;
+  }
+  document.getElementById('cv-overlay').classList.add('open');
+}
+function closeCvModal() { document.getElementById('cv-overlay').classList.remove('open'); }
+function handleCvOverlayClick(e) { if (e.target === document.getElementById('cv-overlay')) closeCvModal(); }
+
+// ── Render ──
+const STATUS_LABELS = { planifie:'Planifié', en_cours:'En cours', retenu:'Retenu', en_attente:'En attente', refuse:'Refusé' };
+
+function renderStats(weekAll) {
+  const cfg = VIEWS[currentView];
+  let html = `
+    <div class="stat-card s-total">  <span class="label">Total semaine</span><span class="value">${weekAll.length}</span></div>
+    <div class="stat-card s-retenu"> <span class="label">Retenus</span><span class="value">${weekAll.filter(c=>c.status==='retenu').length}</span></div>
+    <div class="stat-card s-attente"><span class="label">En attente</span><span class="value">${weekAll.filter(c=>c.status==='en_attente').length}</span></div>
+    <div class="stat-card s-refuse"> <span class="label">Refusés</span><span class="value">${weekAll.filter(c=>c.status==='refuse').length}</span></div>`;
+  if (cfg.hasCompany) {
+    ['CGI','PERSISTENT','TCS'].forEach(co => {
+      const n = weekAll.filter(c => c.company === co).length;
+      html += `<div class="stat-card s-${co.toLowerCase()}"><span class="label">${co}</span><span class="value">${n}</span></div>`;
+    });
+  }
+  document.getElementById('stats-row').innerHTML = html;
+}
+
+function renderCards() {
+  const cfg = VIEWS[currentView];
+  const { monday, sunday } = getWeekBounds(currentWeekOffset);
+  const search  = document.getElementById('search').value.toLowerCase();
+  const fStatus = document.getElementById('filter-status').value;
+  const fCo     = cfg.hasCompany ? document.getElementById('filter-company').value : '';
+  const sort    = document.getElementById('filter-sort').value;
+
+  const weekAll = state.candidates.filter(c => { const d = new Date(c.date+'T12:00:00'); return d>=monday && d<=sunday; });
+  renderStats(weekAll);
+
+  let list = [...weekAll];
+  if (search)  list = list.filter(c => c.name.toLowerCase().includes(search) || c.poste.toLowerCase().includes(search) || (c.notes||'').toLowerCase().includes(search) || (c.company||'').toLowerCase().includes(search));
+  if (fStatus) list = list.filter(c => c.status === fStatus);
+  if (fCo)     list = list.filter(c => c.company === fCo);
+
+  list.sort((a,b) => {
+    if (sort==='date_asc')  return (a.date+a.heure).localeCompare(b.date+b.heure);
+    if (sort==='date_desc') return (b.date+b.heure).localeCompare(a.date+a.heure);
+    if (sort==='note_desc') return (b.stars||0)-(a.stars||0);
+    if (sort==='name_asc')  return a.name.localeCompare(b.name);
+    return 0;
+  });
+
+  const grid  = document.getElementById('cards-grid');
+  const empty = document.getElementById('empty-state');
+
+  if (!list.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  if (cfg.hasCompany && !fCo) {
+    // Group by company
+    const order = ['CGI','PERSISTENT','TCS','AUTRE'];
+    let html = '';
+    order.forEach(co => {
+      const group = list.filter(c => (c.company || 'AUTRE') === co);
+      if (!group.length) return;
+      html += `<div style="grid-column:1/-1"><div class="company-section-title"><span class="company-badge co-${co}">${co}</span>${group.length} candidat${group.length>1?'s':''}</div></div>`;
+      html += group.map(c => cardHtml(c, cfg)).join('');
+    });
+    grid.innerHTML = html;
+  } else {
+    grid.innerHTML = list.map(c => cardHtml(c, cfg)).join('');
+  }
+}
+
+function cardHtml(c, cfg) {
+  const color   = cfg.hasCompany ? (COMPANY_COLORS[c.company||'AUTRE']||'#64748b') : getColor(c.name);
+  const dateStr = new Date(c.date+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+  const heureStr= c.heure ? ' à '+c.heure : '';
+  const noteHtml= c.notes
+    ? `<div class="note-preview">${esc(c.notes)}</div>`
+    : `<div class="note-preview empty">Aucune note…</div>`;
+  const starsHtml = [1,2,3,4,5].map(i =>
+    `<span class="star ${i<=(c.stars||0)?'filled':'empty'}" onclick="quickStar('${c.id}',${i})">★</span>`
+  ).join('');
+  const companyBadge = cfg.hasCompany
+    ? `<span class="company-badge co-${c.company||'AUTRE'}">${c.company||'AUTRE'}</span>` : '';
+  const cvLabel = c.cvFile ? '📎 CV' : '—';
+  return `
+  <div class="candidate-card">
+    <div class="card-accent" style="background:${color}"></div>
+    <div class="card-header">
+      <div class="avatar" style="background:${color}">${initials(c.name)}</div>
+      <div class="card-info">
+        <h3 title="${esc(c.name)}">${esc(c.name)}</h3>
+        <div class="poste" title="${esc(c.poste)}">${esc(c.poste)}</div>
+      </div>
+      <div class="card-right">
+        <span class="card-date">${dateStr}${heureStr}</span>
+        <span class="status-badge status-${c.status}">${STATUS_LABELS[c.status]}</span>
+        ${companyBadge}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta">
+        <div class="stars">${starsHtml}</div>
+        <span style="font-size:.72rem;color:var(--text-light);margin-left:auto">${cvLabel}</span>
+      </div>
+      ${noteHtml}
+    </div>
+    <div class="card-footer">
+      <button class="btn-sm btn-cv"     onclick="openCv('${c.id}')">📄 CV</button>
+      <button class="btn-sm btn-edit"   onclick="openModal('${c.id}')">✏️ Éditer</button>
+      <button class="btn-sm btn-delete" onclick="deleteCandidate('${c.id}')">🗑</button>
+    </div>
+  </div>`;
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══ Priorities ══
+let editingPrioId = null;
+let prioOpen = true;
+
+function togglePrioPanel() {
+  prioOpen = !prioOpen;
+  document.getElementById('prio-body').classList.toggle('open', prioOpen);
+  document.getElementById('prio-header').classList.toggle('open', prioOpen);
+  document.getElementById('prio-toggle-icon').classList.toggle('open', prioOpen);
+}
+
+const PRIO_STATUS_LABELS = { ouvert:'Ouvert', en_cours:'En cours', pause:'En pause', pourvu:'Pourvu' };
+const PRIO_STATUS_CLASS  = { ouvert:'ps-ouvert', en_cours:'ps-en_cours', pause:'ps-pause', pourvu:'ps-pourvu' };
+
+function rankClass(n) {
+  if (n === 1) return 'prio-rank-1';
+  if (n === 2) return 'prio-rank-2';
+  if (n === 3) return 'prio-rank-3';
+  return 'prio-rank-n';
+}
+
+function renderPrios() {
+  const list = [...state.prios].sort((a,b) => (a.rank||99) - (b.rank||99));
+  const cfg  = VIEWS[currentView];
+  document.getElementById('prio-count').textContent = list.length;
+  const container = document.getElementById('prio-list');
+  if (!list.length) { container.innerHTML = '<p class="prio-empty">Aucune priorité définie pour cette vue.</p>'; return; }
+  container.innerHTML = list.map(p => {
+    const companyBadge = (cfg.hasCompany && p.company)
+      ? `<span class="company-badge co-${p.company}" style="font-size:.68rem">${p.company}</span>` : '';
+    const notesPreview = p.notes
+      ? `<span class="prio-notes-preview" title="${esc(p.notes)}">💬 ${esc(p.notes)}</span>` : '';
+    return `
+    <div class="prio-row">
+      <div class="prio-rank ${rankClass(p.rank)}">P${p.rank}</div>
+      <div class="prio-main">
+        <div class="prio-profile">${esc(p.profile)}</div>
+        <div class="prio-sub">
+          <span class="prio-team-tag">👥 ${esc(p.team)}</span>
+          ${companyBadge}
+          ${notesPreview}
+        </div>
+      </div>
+      <span class="prio-status-badge ${PRIO_STATUS_CLASS[p.status]||'ps-ouvert'}">${PRIO_STATUS_LABELS[p.status]||'Ouvert'}</span>
+      <div class="prio-actions">
+        <button class="prio-btn" onclick="openPrioModal('${p.id}')">✏️</button>
+        <button class="prio-btn del" onclick="deletePrio('${p.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openPrioModal(id = null) {
+  editingPrioId = id;
+  const cfg = VIEWS[currentView];
+  document.getElementById('prio-modal-title').textContent = id ? '✏️ Modifier la priorité' : '🎯 Nouvelle priorité — ' + cfg.label;
+  document.getElementById('p-field-company').style.display = cfg.hasCompany ? '' : 'none';
+  if (id) {
+    const p = state.prios.find(x => x.id === id);
+    document.getElementById('p-rank').value    = p.rank;
+    document.getElementById('p-profile').value = p.profile;
+    document.getElementById('p-team').value    = p.team;
+    document.getElementById('p-status').value  = p.status || 'ouvert';
+    document.getElementById('p-notes').value   = p.notes || '';
+    if (cfg.hasCompany) document.getElementById('p-company').value = p.company || '';
+  } else {
+    const next = (state.prios.reduce((m,p) => Math.max(m, p.rank||0), 0)) + 1;
+    document.getElementById('p-rank').value    = next;
+    document.getElementById('p-profile').value = '';
+    document.getElementById('p-team').value    = '';
+    document.getElementById('p-status').value  = 'ouvert';
+    document.getElementById('p-notes').value   = '';
+    if (cfg.hasCompany) document.getElementById('p-company').value = '';
+  }
+  document.getElementById('prio-overlay').classList.add('open');
+}
+function closePrioModal() { document.getElementById('prio-overlay').classList.remove('open'); }
+function handlePrioOverlayClick(e) { if (e.target === document.getElementById('prio-overlay')) closePrioModal(); }
+
+async function savePrio() {
+  const rank    = parseInt(document.getElementById('p-rank').value) || 1;
+  const profile = document.getElementById('p-profile').value.trim();
+  const team    = document.getElementById('p-team').value.trim();
+  if (!profile || !team) { alert("Remplissez le profil et l'équipe."); return; }
+  const cfg  = VIEWS[currentView];
+  const base = {
+    rank, profile, team,
+    status: document.getElementById('p-status').value,
+    notes:  document.getElementById('p-notes').value.trim(),
+    ...(cfg.hasCompany ? { company: document.getElementById('p-company').value } : {}),
+  };
+  if (editingPrioId) {
+    await api.put(`/api/${currentView}/priorities/${editingPrioId}`, base);
+  } else {
+    await api.post(`/api/${currentView}/priorities`, base);
+  }
+  state.prios = await api.get(`/api/${currentView}/priorities`);
+  closePrioModal();
+  renderPrios();
+}
+
+async function deletePrio(id) {
+  if (!confirm('Supprimer cette priorité ?')) return;
+  await api.del(`/api/${currentView}/priorities/${id}`);
+  state.prios = state.prios.filter(p => p.id !== id);
+  renderPrios();
+}
+
+// ── Init ──
+updateWeekLabel();
+document.getElementById('prio-body').classList.add('open');
+document.getElementById('prio-header').classList.add('open');
+document.getElementById('prio-toggle-icon').classList.add('open');
+switchView('avaliance');
+</script>
+</body>
+</html>
